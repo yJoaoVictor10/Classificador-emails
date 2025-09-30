@@ -1,22 +1,27 @@
 import re
 import string
 from pathlib import Path
-import nltk
-from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
-from PyPDF2 import PdfReader
 
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords')
+# Stopwords portuguesas já incluídas
+STOP_WORDS_PORTUGUESE = {
+    'a','à','ao','aos','aquela','aquelas','aquele','aqueles','aquilo','as','até',
+    'com','como','da','das','de','dela','delas','dele','deles','depois','do','dos',
+    'e','ela','elas','ele','eles','em','entre','era','eram','éramos','essa','essas',
+    'esse','esses','esta','está','estamos','estão','estas','estava','estavam','este',
+    'estes','eu','foi','foram','há','isso','isto','já','lhe','lhes','mais','mas','me',
+    'mesmo','meu','meus','minha','minhas','na','nas','não','nem','no','nos','nós',
+    'nossa','nossas','nosso','nossos','num','numa','o','os','ou','para','pela','pelas',
+    'pelo','pelos','por','qual','quando','que','quem','se','seu','seus','sua','suas',
+    'também','te','tem','têm','teu','teus','teu','teve','tinha','tinham','toda','todas',
+    'todo','todos','tu','tua','tuas','um','uma','você','vocês','vos'
+}
 
 stemmer = SnowballStemmer('portuguese')
-stop_words = set(stopwords.words('portuguese'))
+stop_words = STOP_WORDS_PORTUGUESE
 
 PRODUCTIVE_KEYWORDS = ['solicita', 'suport', 'atualiz', 'duvid']
 UNPRODUCTIVE_KEYWORDS = ['feliz', 'obrig', 'parabén', 'agradec']
-
 
 def extract_text_from_file(file_path):
     """Extrai texto de arquivos .txt ou .pdf"""
@@ -24,6 +29,10 @@ def extract_text_from_file(file_path):
     if path.suffix.lower() == '.txt':
         return path.read_text(encoding='utf-8', errors='ignore')
     elif path.suffix.lower() == '.pdf':
+        try:
+            from PyPDF2 import PdfReader
+        except ImportError:
+            return ''
         text_pages = []
         reader = PdfReader(str(path))
         for page in reader.pages:
@@ -31,7 +40,6 @@ def extract_text_from_file(file_path):
         return '\n'.join(text_pages)
     else:
         return ''
-
 
 def preprocess_text(text):
     """Normaliza, remove emails, urls, números, pontuação, stopwords e aplica stemming"""
@@ -46,7 +54,6 @@ def preprocess_text(text):
 
     return ' '.join(stemmed_tokens)
 
-
 def analyze_email(preprocessed_text):
     """Classifica o email em Produtivo ou Improdutivo usando palavras-chave"""
     score = 0
@@ -60,12 +67,8 @@ def analyze_email(preprocessed_text):
     category = 'Produtivo' if score > 0 else 'Improdutivo'
     return category, score
 
-
 def generate_response_with_openai(original_text, category, openai_api_key):
-    """
-    Gera uma resposta automática via OpenAI (opcional).
-    Requer pacote `openai` instalado e chave de API válida.
-    """
+    """Gera resposta automática via OpenAI, se chave disponível"""
     try:
         import openai
     except ImportError:
