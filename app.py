@@ -22,10 +22,11 @@ def inicio():
 
 @app.route('/analisar', methods=['POST'])
 def analisar():
-    texto_email = request.form.get('texto_email', '').strip()
+    texto_email = request.form.get('email_text', '').strip()
 
-    if 'arquivo_email' in request.files and request.files['arquivo_email'].filename != '':
-        arquivo = request.files['arquivo_email']
+    # Verifica se houve upload de arquivo
+    if 'email_file' in request.files and request.files['email_file'].filename != '':
+        arquivo = request.files['email_file']
         if arquivo and arquivo_permitido(arquivo.filename):
             nome_arquivo = secure_filename(arquivo.filename)
             caminho_arquivo = os.path.join(app.config['UPLOAD_FOLDER'], nome_arquivo)
@@ -65,3 +66,6 @@ def analisar():
         score=pontuacao,
         suggested=resposta_sugerida
     )
+
+if __name__ == '__main__':
+    app.run(debug=True)
