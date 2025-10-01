@@ -3,8 +3,7 @@ import string
 from pathlib import Path
 from nltk.stem import SnowballStemmer
 
-# Stopwords portuguesas já incluídas
-STOP_WORDS_PORTUGUESE = {
+PALAVRAS_PARADA = {
     'a','à','ao','aos','aquela','aquelas','aquele','aqueles','aquilo','as','até',
     'com','como','da','das','de','dela','delas','dele','deles','depois','do','dos',
     'e','ela','elas','ele','eles','em','entre','era','eram','éramos','essa','essas',
@@ -17,76 +16,72 @@ STOP_WORDS_PORTUGUESE = {
     'todo','todos','tu','tua','tuas','um','uma','você','vocês','vos'
 }
 
-stemmer = SnowballStemmer('portuguese')
-stop_words = STOP_WORDS_PORTUGUESE
+radicalizador = SnowballStemmer('portuguese')
+palavras_parada = PALAVRAS_PARADA
 
-PRODUCTIVE_KEYWORDS = ['solicita', 'suport', 'atualiz', 'duvid']
-UNPRODUCTIVE_KEYWORDS = ['feliz', 'obrig', 'parabén', 'agradec']
+PALAVRAS_CHAVE_PRODUTIVAS = ['solicita', 'suport', 'atualiz', 'duvid']
+PALAVRAS_CHAVE_IMPRODUTIVAS = ['feliz', 'obrig', 'parabén', 'agradec']
 
-def extract_text_from_file(file_path):
-    """Extrai texto de arquivos .txt ou .pdf"""
-    path = Path(file_path)
-    if path.suffix.lower() == '.txt':
-        return path.read_text(encoding='utf-8', errors='ignore')
-    elif path.suffix.lower() == '.pdf':
+def extrair_texto_arquivo(caminho_arquivo):
+    caminho = Path(caminho_arquivo)
+    if caminho.suffix.lower() == '.txt':
+        return caminho.read_text(encoding='utf-8', errors='ignore')
+    elif caminho.suffix.lower() == '.pdf':
         try:
             from PyPDF2 import PdfReader
         except ImportError:
             return ''
-        text_pages = []
-        reader = PdfReader(str(path))
-        for page in reader.pages:
-            text_pages.append(page.extract_text() or '')
-        return '\n'.join(text_pages)
+        paginas_texto = []
+        leitor = PdfReader(str(caminho))
+        for pagina in leitor.pages:
+            paginas_texto.append(pagina.extract_text() or '')
+        return '\n'.join(paginas_texto)
     else:
         return ''
 
-def preprocess_text(text):
-    """Normaliza, remove emails, urls, números, pontuação, stopwords e aplica stemming"""
-    text = text.lower()
-    text = re.sub(r'\S+@\S+', ' ', text) 
-    text = re.sub(r'http\S+', ' ', text)
-    text = re.sub(r'\d+', ' ', text)     
-    text = text.translate(str.maketrans('', '', string.punctuation))  
+def preprocessar_texto(texto):
+    texto = texto.lower()
+    texto = re.sub(r'\S+@\S+', ' ', texto) 
+    texto = re.sub(r'http\S+', ' ', texto)
+    texto = re.sub(r'\d+', ' ', texto)     
+    texto = texto.translate(str.maketrans('', '', string.punctuation))  
 
-    tokens = [t for t in text.split() if t not in stop_words]
-    stemmed_tokens = [stemmer.stem(t) for t in tokens]
+    tokens = [t for t in texto.split() if t not in palavras_parada]
+    tokens_radicalizados = [radicalizador.stem(t) for t in tokens]
 
-    return ' '.join(stemmed_tokens)
+    return ' '.join(tokens_radicalizados)
 
-def analyze_email(preprocessed_text):
-    """Classifica o email em Produtivo ou Improdutivo usando palavras-chave"""
-    score = 0
-    for kw in PRODUCTIVE_KEYWORDS:
-        if kw in preprocessed_text:
-            score += 2
-    for kw in UNPRODUCTIVE_KEYWORDS:
-        if kw in preprocessed_text:
-            score -= 2
+def analisar_email(texto_preprocessado):
+    pontuacao = 0
+    for palavra in PALAVRAS_CHAVE_PRODUTIVAS:
+        if palavra in texto_preprocessado:
+            pontuacao += 2
+    for palavra in PALAVRAS_CHAVE_IMPRODUTIVAS:
+        if palavra in texto_preprocessado:
+            pontuacao -= 2
 
-    category = 'Produtivo' if score > 0 else 'Improdutivo'
-    return category, score
+    categoria = 'Produtivo' if pontuacao > 0 else 'Improdutivo'
+    return categoria, pontuacao
 
-def generate_response_with_openai(original_text, category, openai_api_key):
-    """Gera resposta automática via OpenAI, se chave disponível"""
+def gerar_resposta_openai(texto_original, categoria, chave_openai):
     try:
         import openai
     except ImportError:
         return 'OpenAI não instalado. Instale `openai` para usar esta funcionalidade.'
 
-    openai.api_key = openai_api_key
+    openai.api_key = chave_openai
     prompt = (
         f"Classifique o seguinte email como Produtivo ou Improdutivo e gere uma resposta adequada.\n\n"
-        f"Categoria: {category}\nEmail:\n{original_text}\n\nResposta sugerida:\n"
+        f"Categoria: {categoria}\nEmail:\n{texto_original}\n\nResposta sugerida:\n"
     )
 
     try:
-        response = openai.Completion.create(
+        resposta = openai.Completion.create(
             engine='text-davinci-003',
             prompt=prompt,
             max_tokens=200,
             temperature=0.2,
         )
-        return response.choices[0].text.strip()
-    except Exception as e:
-        return f'Erro ao chamar OpenAI: {e}'
+        return resposta.choices[0].text.strip()
+    except Exception as erro:
+        return f'Erro ao chamar OpenAI: {erro}'
