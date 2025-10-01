@@ -1,75 +1,67 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 import os
-from classifier import analyze_email, preprocess_text, generate_response_with_openai, extract_text_from_file
+from classifier import analisar_email, preprocessar_texto, gerar_resposta_openai, extrair_texto_arquivo
 
-# Diretório temporário para uploads no serverless Vercel
-UPLOAD_FOLDER = '/tmp/uploads'
-ALLOWED_EXTENSIONS = {'txt', 'pdf'}
+PASTA_UPLOAD = '/tmp/uploads'
+EXTENSOES_PERMITIDAS = {'txt', 'pdf'}
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'troque_para_uma_chave_secreta_real')
+app.config['UPLOAD_FOLDER'] = PASTA_UPLOAD
+app.secret_key = os.environ.get('CHAVE_SECRETA_FLASK', 'troque_para_uma_chave_secreta_real')
 
-# Cria a pasta temporária, se não existir
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+if not os.path.exists(PASTA_UPLOAD):
+    os.makedirs(PASTA_UPLOAD)
 
-def is_allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def arquivo_permitido(nome_arquivo):
+    return '.' in nome_arquivo and nome_arquivo.rsplit('.', 1)[1].lower() in EXTENSOES_PERMITIDAS
 
 @app.route('/', methods=['GET'])
-def index():
+def inicio():
     return render_template('index.html')
 
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    email_text = request.form.get('email_text', '').strip()
+@app.route('/analisar', methods=['POST'])
+def analisar():
+    texto_email = request.form.get('texto_email', '').strip()
 
-    # Verifica se o usuário enviou arquivo
-    if 'email_file' in request.files and request.files['email_file'].filename != '':
-        file = request.files['email_file']
-        if file and is_allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
-            # Extrai o texto do arquivo (PDF ou TXT)
-            email_text = extract_text_from_file(file_path)
+    if 'arquivo_email' in request.files and request.files['arquivo_email'].filename != '':
+        arquivo = request.files['arquivo_email']
+        if arquivo and arquivo_permitido(arquivo.filename):
+            nome_arquivo = secure_filename(arquivo.filename)
+            caminho_arquivo = os.path.join(app.config['UPLOAD_FOLDER'], nome_arquivo)
+            arquivo.save(caminho_arquivo)
+            texto_email = extrair_texto_arquivo(caminho_arquivo)
         else:
             flash('Formato de arquivo não permitido. Use apenas .txt ou .pdf')
-            return redirect(url_for('index'))
+            return redirect(url_for('inicio'))
 
-    if not email_text:
+    if not texto_email:
         flash('Por favor, insira um texto ou envie um arquivo com o conteúdo do email.')
-        return redirect(url_for('index'))
+        return redirect(url_for('inicio'))
 
-    processed_text = preprocess_text(email_text)
-    category, score = analyze_email(processed_text)
+    texto_processado = preprocessar_texto(texto_email)
+    categoria, pontuacao = analisar_email(texto_processado)
 
-    # Usa variável de ambiente para OpenAI
-    openai_key = os.environ.get('OPENAI_API_KEY', '').strip()
-    if openai_key:
-        suggested_reply = generate_response_with_openai(email_text, category, openai_key)
+    chave_openai = os.environ.get('CHAVE_API_OPENAI', '').strip()
+    if chave_openai:
+        resposta_sugerida = gerar_resposta_openai(texto_email, categoria, chave_openai)
     else:
-        if category == 'Produtivo':
-            suggested_reply = (
+        if categoria == 'Produtivo':
+            resposta_sugerida = (
                 "Olá,\n\nRecebemos sua mensagem e estamos analisando o pedido. "
                 "Encaminhei para o time responsável e retornaremos em até 2 dias úteis. "
                 "Caso tenha informações adicionais, por favor responda este email.\n\nAtenciosamente,\nEquipe de Suporte"
             )
         else:
-            suggested_reply = (
+            resposta_sugerida = (
                 "Olá,\n\nAgradecemos sua mensagem. Não é necessária nenhuma ação adicional no momento. "
                 "Se precisar de suporte, abra um chamado através do portal.\n\nAtenciosamente,\nEquipe"
             )
 
     return render_template(
         'index.html',
-        original_text=email_text,
-        category=category,
-        score=score,
-        suggested=suggested_reply
+        original_text=texto_email,
+        category=categoria,
+        score=pontuacao,
+        suggested=resposta_sugerida
     )
-
-# NUNCA chame app.run() no serverless
-# Vercel cuidará de iniciar a app automaticamente
