@@ -1,64 +1,41 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
+<head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Classificador de Emails - Demo</title>
     <link rel="stylesheet" href="/static/style.css" />
-  </head>
-  <body>
+</head>
+<body>
     <main class="container">
-      <h1>Classificador de Emails</h1>
-      <form
-        id="form"
-        action="/analisar"
-        method="post"
-        enctype="multipart/form-data"
-      >
-        <label for="email_text">Cole o texto do email aqui:</label>
-        <textarea
-          id="email_text"
-          name="email_text"
-          rows="8"
-          placeholder="Cole o conteúdo do email..."
-        ></textarea>
+        <h1>Classificador de Emails</h1>
+        <form id="form" action="/analisar" method="post" enctype="multipart/form-data">
+            <label for="email_text">Cole o texto do email aqui:</label>
+            <textarea id="email_text" name="email_text" rows="8" placeholder="Cole o conteúdo do email..."></textarea>
 
-        <div class="or">ou</div>
+            <div class="or">ou</div>
 
-        <label for="email_file">Envie um arquivo (.txt ou .pdf):</label>
-        <input
-          type="file"
-          id="email_file"
-          name="email_file"
-          accept=".txt,.pdf"
-        />
+            <label for="email_file">Envie um arquivo (.txt ou .pdf):</label>
+            <input type="file" id="email_file" name="email_file" accept=".txt,.pdf" />
 
-        <label for="openai_key"
-          >(Opcional) Chave OpenAI para gerar respostas via API:</label
-        >
-        <input
-          type="text"
-          id="openai_key"
-          name="openai_key"
-          placeholder="sk-... (opcional)"
-        />
+            <label for="openai_key">(Opcional) Chave OpenAI para gerar respostas via API:</label>
+            <input type="text" id="openai_key" name="openai_key" placeholder="sk-... (opcional)" />
 
-        <button type="submit">Analisar</button>
-      </form>
+            <button type="submit">Analisar</button>
+        </form>
 
-      {% if category %}
-      <section class="results">
-        <h2>Resultado</h2>
-        <p><strong>Categoria:</strong> {{ category }} (score: {{ score }})</p>
-        <h3>Resposta sugerida</h3>
-        <pre class="suggested">{{ suggested }}</pre>
+        {% if category %}
+        <section class="results">
+            <h2>Resultado</h2>
+            <p><strong>Categoria:</strong> {{ category }} (score: {{ score }})</p>
+            <h3>Resposta sugerida</h3>
+            <pre class="suggested">{{ suggested }}</pre>
 
-        <h3>Texto original</h3>
-        <pre class="original">{{ original_text }}</pre>
-      </section>
-      {% endif %}
+            <h3>Texto original</h3>
+            <pre class="original">{{ original_text }}</pre>
+        </section>
+        {% endif %}
     </main>
     <script src="/static/script.js"></script>
-  </body>
+</body>
 </html>
-
